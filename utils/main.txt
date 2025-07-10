@@ -1,0 +1,71 @@
+import argparse
+import logging
+from pathlib import Path
+
+from defaults import get_cfg_defaults
+from registry import PREPROCESSING_STEPS, FEATURE_EXTRACTORS, MODELS
+
+# Import to register the components upon script start
+import preprocessing.preprocessing
+import core.features
+import core.models
+
+def build_preprocessing_pipeline(cfg):
+    """Builds the preprocessing pipeline from the config."""
+    logging.info("Building Preprocessing Pipeline...")
+    pipeline = []
+    for step_config in cfg.preprocessing:
+        step_name = list(step_config.keys())[0]
+        params = step_config[step_name] or {}
+        step_builder = PREPROCESSING_STEPS.get(step_name)
+        step = step_builder(params)
+        pipeline.append(step)
+    return pipeline
+
+def build_feature_pipeline(cfg):
+    """Builds the feature extraction pipeline from the config."""
+    logging.info("Building Feature Extraction Pipeline...")
+    extractors = []
+    for feature_name, params in cfg.feature_extraction.items():
+        extractor_builder = FEATURE_EXTRACTORS.get(feature_name)
+        extractor = extractor_builder(params)
+        extractors.append(extractor)
+    return extractors
+
+def build_model(cfg):
+    """Builds the model from the config."""
+    logging.info("Building Model...")
+    model_builder = MODELS.get(cfg.model.type)
+    model = model_builder(cfg.model.params)
+    logging.info(f"Model '{cfg.model.type}' built.")
+    return model
+
+def main():
+    parser = argparse.ArgumentParser(description="Main training and evaluation script.")
+    parser.add_argument("--cfg", dest="config_file", required=True, help="Path to config file")
+    args = parser.parse_args()
+
+    cfg = get_cfg_defaults()
+    cfg.merge_from_file(args.config_file)
+    cfg.freeze()
+
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logging.info(f"Loaded configuration from {args.config_file}")
+
+    # Create output directory
+    Path(cfg.out_dir).mkdir(parents=True, exist_ok=True)
+
+    # Setup Pipelines and Model
+    preprocessing_pipeline = build_preprocessing_pipeline(cfg)
+    feature_pipeline = build_feature_pipeline(cfg)
+    model = build_model(cfg)
+
+    # --- Placeholder for Execution Logic ---
+    logging.info("Starting main execution logic (train, evaluate, save)...")
+    # train(model, data, ...)
+    # evaluate(model, data, ...)
+    # save_results(results, cfg.out_dir)
+    logging.info("✅ Pipeline execution finished successfully!")
+
+if __name__ == "__main__":
+    main()
